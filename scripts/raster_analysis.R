@@ -1,0 +1,68 @@
+# raster analysis
+
+source("scripts/knihovnik.R", echo = F)
+
+source("scripts/load_vector.R", echo = F)
+vector
+plot(vector)
+
+# vyfiltrovat moz a -1
+vyloucit <- c("moz.", "-")
+vector <- vector[!vector$FSB %in% vyloucit,]
+rm(vyloucit)
+
+source("scripts/load_raster.R", echo = F)
+raster_list
+
+source("scripts/CRS.R", echo = F)
+
+plot(vector[!is.na(vector$BIOTOP_CODES)])
+plot(raster_list[[1]], add = T)
+
+######## rasterizace
+
+x <- rasterize(vector, raster_list[[1]], field = "BIOTOP_CODES")
+plot(x)
+plot(x, xlim = c(4620000, 4621000), ylim = c(2865000, 2866000))
+writeRaster(x, "data/processing/x.tif", overwrite = T)
+
+########### prace s rasterizovanou VMB a raster_list
+
+VMBraster <- rast("data/processing/x.tif") # pripraveno z minule
+
+VMB_levels <- levels(VMBraster)[[1]]
+print(VMB_levels)
+
+stacked <- c(raster_list[[1]], VMBraster) # vytvoreni jednoho produktu (raster with 2 bands)
+names(stacked) <- c("GT", "VMB") # pojemnovani bands
+
+plot(stacked)
+data_tab <- as.data.frame(values(stacked))
+head(data_tab)
+
+table(data_tab$VMB, data_tab$GT)
+
+df <- merge(data_tab, VMB_levels, by.x = "VMB", by.y = "value", all.x = TRUE)
+
+table(df$VMB, df$BIOTOP_CODES, useNA = "always")
+table(df$GT, df$BIOTOP_CODES, useNA = "always")
+
+df[df$VMB == 1,]
+############################ funguje 
+
+str(data_tab)
+str(VMB_levels)
+
+data_tab$VMB[is.nan(data_tab$VMB)] <- NA
+data_tab$VMB <- as.integer(data_tab$VMB)
+data_tab_joined <- data_tab %>%
+  left_join(VMB_levels, by = c("VMB" = "value"))
+df <- data_tab_joined
+
+library(caret)
+
+cm <- confusionMatrix(
+  factor(data_tab$predikce, levels = truth_levels$ID, labels = truth_levels$biotop_kod),
+  factor(data_tab$pravda, levels = truth_levels$ID, labels = truth_levels$biotop_kod)
+)
+print(cm)
