@@ -2,17 +2,43 @@
 
 # path <- readline(prompt = "Zadejte cestu k referencni vektorove Vrstve mapovani biotopu: \n(neco/jako/tohle/vector.shp)\ndata/VMB/VMB_bio_hab.shp\n") # cesta
 path <- "data/VMB/VMB_Boletice.shp"
-VMB <- vect(path)
+vector <- vect(path)
 
 new_cols <- data.frame(
-  BIOTOP_CODES = as.factor(gsub(" \\(\\d+\\)", "", VMB$BIOTOP_SEZ)),
-  HABIT_CODES = as.factor(gsub(" \\(\\d+\\)", "", VMB$HABIT_SEZ))
-  
+  BIOTOP_CODES = as.factor(gsub(" \\(\\d+\\)", "", vector$BIOTOP_SEZ)),
+  HABIT_CODES = as.factor(gsub(" \\(\\d+\\)", "", vector$HABIT_SEZ))
 )
-VMB <- cbind(VMB, new_cols)
-VMB <- VMB[, c("SEGMENT_ID", "FSB", "BIOTOP_CODES", "HABIT_CODES", "SHAPE_Area", "DATUM")]
 
-vector <- VMB
+vector <- cbind(vector, new_cols)
+vector <- vector[, c("SEGMENT_ID", "FSB", "BIOTOP_CODES", "HABIT_CODES", "SHAPE_Area", "DATUM")]
 
-rm(VMB, path, new_cols)
+FSBout <- function(){
+  repeat{
+    vyhazuji <- readline(prompt = "Prejete si vyloucit nejakou FSB z analyzy? [T/F]: ")
+    ifelse(toupper(vyhazuji) %in% c("T", "F"),
+           break,
+           cat("Zadejte prosim pouze T nebo F.\n"))
+  }
+  vyhazuji <- toupper(vyhazuji) == "T"
+  return(vyhazuji)
+}
+
+what_to_filter <- NULL #what_to_filter <- "T"
+while(FSBout() == TRUE){
+    co <- NA
+    cat("Ve vrstve zbyva:", unique(vector$FSB[!(vector$FSB %in% what_to_filter)]), "\n")
+    co <- toupper(readline(prompt = "Jake skupiny FSB chcete odstranit? \n"))
+    if(toupper(co) %in% toupper(vector$FSB)){
+      what_to_filter <- c(what_to_filter, co)
+      cat("Odstarneno bude:", what_to_filter)
+    }else{
+      cat("FSB not found!\n")
+      next
+    }
+}
+print(what_to_filter)
+vector <- vector[!toupper(vector$FSB) %in% what_to_filter,]
+unique(vector$FSB)
+
+rm(path, new_cols, what_to_filter)
 gc()
